@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1CQ4D3VQ3L"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-1CQ4D3VQ3L');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Primary Meta Tags -->
+    <title>Crystal Candy - Infinite Procedural 3D World</title>
+    <meta name="title" content="Crystal Candy - Infinite Procedural 3D World">
+    <meta name="description" content="Explore an infinite, procedurally generated wilderness of glowing crystal structures. An interactive 3D WebGL experience.">
+    <meta name="keywords" content="Crystal Candy, Three.js, WebGL, Procedural Generation, 3D Art, Interactive, Arcade, Digital Art">
+    <meta name="author" content="Chris Pirillo">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://pirillo.com/arcade/crystal-candy.html">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pirillo.com/arcade/crystal-candy.html">
+    <meta property="og:title" content="Crystal Candy - Infinite Procedural 3D World">
+    <meta property="og:description" content="Explore an infinite, procedurally generated wilderness of glowing crystal structures. An interactive 3D WebGL experience by Chris Pirillo.">
+    <meta property="og:image" content="https://pirillo.com/arcade/images/crystal-candy.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://pirillo.com/arcade/crystal-candy.html">
+    <meta property="twitter:title" content="Crystal Candy - Infinite Procedural 3D World">
+    <meta property="twitter:description" content="Explore an infinite, procedurally generated wilderness of glowing crystal structures. An interactive 3D WebGL experience by Chris Pirillo.">
+    <meta property="twitter:image" content="https://pirillo.com/arcade/images/crystal-candy.png">
+    <meta name="twitter:creator" content="@ChrisPirillo">
+
+    <!-- Performance Hints -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Crystal Candy",
+      "url": "https://pirillo.com/arcade/crystal-candy.html",
+      "description": "An interactive 3D procedural generation experience featuring infinite fields of glowing crystal structures.",
+      "author": {
+        "@type": "Person",
+        "name": "Chris Pirillo",
+        "url": "https://chris.pirillo.com"
+      },
+      "image": "https://pirillo.com/arcade/images/crystal-candy.png",
+      "genre": "Interactive Art",
+      "applicationCategory": "MultimediaApplication"
+    }
+    </script>
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #020005; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        /* Changed from div to main for semantics, ID kept for JS compatibility */
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
+
+        /* Hamburger Menu */
+        #hamburger-menu { position: absolute; top: 20px; left: 20px; z-index: 200; }
+        #menu-toggle {
+            width: 44px; height: 44px; background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 50%;
+            cursor: pointer; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; padding: 10px;
+            backdrop-filter: blur(5px); transition: 0.3s;
+        }
+        #menu-toggle:hover { background: rgba(255,255,255,0.2); transform: scale(1.1); }
+        #menu-toggle span { display: block; width: 20px; height: 2px; background: white; margin: 2px 0; }
+
+        #menu-content {
+            position: absolute; top: 70px; left: 0;
+            background: rgba(5, 0, 10, 0.95); padding: 25px;
+            border-radius: 0 16px 16px 16px; width: 320px;
+            transform: translateX(-120%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            border: 1px solid rgba(255,255,255,0.1); color: #eee;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            max-height: 80vh; overflow-y: auto;
+        }
+        #menu-content.open { transform: translateX(20px); }
+        
+        .control-group { margin-bottom: 20px; }
+        label { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; color: #d0b0ff; font-weight: 600; }
+        input[type=range] { width: 100%; accent-color: #d500f9; height: 4px; background: #333; border-radius: 2px; outline: none; }
+        
+        button.regen { 
+            width: 100%; padding: 15px; background: linear-gradient(135deg, #d500f9, #651fff); border: none; 
+            color: white; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px;
+            text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(100,0,255,0.4);
+        }
+        button.regen:hover { filter: brightness(1.2); transform: translateY(-1px); }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <nav id="hamburger-menu" aria-label="Main Controls">
+        <button id="menu-toggle" aria-label="Toggle Settings Menu"><span></span><span></span><span></span></button>
+        <aside id="menu-content" aria-label="Procedural Generation Settings">
+            <h3>Procedural Generation</h3>
+            <div class="control-group">
+                <label for="density">Tree Count <span id="val-density">3000</span></label>
+                <input type="range" id="density" min="500" max="8000" value="3000">
+            </div>
+            <div class="control-group">
+                <label for="rangeScale">World Spread <span id="val-range">1.0</span></label>
+                <input type="range" id="rangeScale" min="0.5" max="2.0" step="0.1" value="1.0">
+            </div>
+            <div class="control-group">
+                <label for="heightScale">Height Scale <span id="val-height">1.0</span></label>
+                <input type="range" id="heightScale" min="0.5" max="3.0" step="0.1" value="1.0">
+            </div>
+            <div class="control-group">
+                <label for="widthScale">Width Scale <span id="val-width">1.0</span></label>
+                <input type="range" id="widthScale" min="0.5" max="4.0" step="0.1" value="1.0">
+            </div>
+
+            <h3>Lighting & Post-Processing</h3>
+            <div class="control-group">
+                <label for="lightIntensity">Light Intensity <span id="val-light">1.0</span></label>
+                <input type="range" id="lightIntensity" min="0.5" max="3.0" step="0.1" value="1.0">
+            </div>
+            <div class="control-group">
+                <label for="bloomThreshold">Bloom Threshold <span id="val-bloom-threshold">0.85</span></label>
+                <input type="range" id="bloomThreshold" min="0.1" max="1.0" step="0.05" value="0.85">
+            </div>
+            <div class="control-group">
+                <label for="bloomStrength">Bloom Strength <span id="val-bloom-strength">0.8</span></label>
+                <input type="range" id="bloomStrength" min="0.0" max="3.0" step="0.1" value="0.8">
+            </div>
+
+            <h3>Ground Effects & Physics</h3>
+            <div class="control-group">
+                <label for="sparkles">Sparkle Density <span id="val-sparkles">High</span></label>
+                <input type="range" id="sparkles" min="0" max="4" step="1" value="3">
+            </div>
+             <div class="control-group">
+                <label for="movementSpeed">Movement Speed <span id="val-move-speed">1200</span></label>
+                <input type="range" id="movementSpeed" min="500" max="3000" step="100" value="1200">
+            </div>
+             <div class="control-group">
+                <label for="jumpPower">Jump Power <span id="val-jump-power">50</span></label>
+                <input type="range" id="jumpPower" min="10" max="100" step="5" value="50">
+            </div>
+
+
+            <button class="regen" id="btn-random">Randomize All</button>
+            <button class="regen" id="btn-regen">Apply Settings</button>
+        </aside>
+    </nav>
+
+    <main id="canvas-container"></main>
+    
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+        import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+        let scene, camera, renderer, controls, composer;
+        let instancedCrystals, groundSparkles;
+        let sunLights = []; 
+        let ambientLight, sun1, sun2, sun3; // Declare lights globally
+        let isLocking = false;
+        let bloomPass; 
+
+        // Physics
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        let prevTime = performance.now();
+        let currentMovementSpeed = 1200.0;
+        let currentJumpPower = 50.0;
+
+        // World Data
+        let treeData = [];
+        let config = {
+            density: 3000,
+            range: 1000, 
+            rangeScale: 1.0, 
+            heightScale: 1.0,
+            widthScale: 1.0,
+            lightIntensity: 1.0,
+            bloomThreshold: 0.85,
+            bloomStrength: 0.8,
+            sparkleLevel: 3
+        };
+        
+        const PALETTE = [
+            new THREE.Color(0xd50000).convertSRGBToLinear(), 
+            new THREE.Color(0x00b0ff).convertSRGBToLinear(), 
+            new THREE.Color(0x00e676).convertSRGBToLinear(), 
+            new THREE.Color(0xaa00ff).convertSRGBToLinear(), 
+            new THREE.Color(0xffea00).convertSRGBToLinear(), 
+            new THREE.Color(0xff1744).convertSRGBToLinear(), 
+            new THREE.Color(0x00ffff).convertSRGBToLinear(), 
+            new THREE.Color(0xff00ff).convertSRGBToLinear() 
+        ];
+
+        // Sparkle Shader (Sharper, brighter)
+        const sparkleVertex = `
+            attribute float size;
+            attribute float phase;
+            varying float vAlpha;
+            uniform float uTime;
+            void main() {
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                gl_Position = projectionMatrix * mvPosition;
+                float twinkle = sin(uTime * 6.0 + phase); 
+                float intensity = 0.5 + 0.5 * twinkle;
+                gl_PointSize = size * intensity * (80.0 / -mvPosition.z);
+                vAlpha = intensity;
+            }
+        `;
+        const sparkleFragment = `
+            varying float vAlpha;
+            void main() {
+                vec2 center = gl_PointCoord - 0.5;
+                float dist = length(center);
+                if (dist > 0.5) discard;
+                float glow = 1.0 - (dist * 2.0);
+                glow = pow(glow, 4.0); 
+                gl_FragColor = vec4(1.0, 1.0, 1.0, vAlpha * glow * 4.0);
+            }
+        `;
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+            const bgCol = new THREE.Color(0x05000a);
+            scene.background = bgCol;
+            scene.fog = new THREE.FogExp2(0x05000a, 0.0015); 
+
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.y = 3; 
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 0.8;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            container.appendChild(renderer.domElement);
+
+            const pmremGenerator = new THREE.PMREMGenerator(renderer);
+            const roomEnvironment = new RoomEnvironment();
+            scene.environment = pmremGenerator.fromScene(roomEnvironment).texture;
+
+            // Controls
+            controls = new PointerLockControls(camera, document.body);
+            
+            const requestLock = () => {
+                if(isLocking || controls.isLocked) return;
+                if(document.getElementById('menu-content').classList.contains('open')) return;
+                
+                isLocking = true;
+                controls.lock();
+                setTimeout(() => { isLocking = false; }, 1000);
+            };
+
+            document.body.addEventListener('click', (e) => {
+                if(e.target.closest('#hamburger-menu') || e.target.closest('#menu-content')) return;
+                requestLock();
+            });
+            
+            // ESC Menu Logic
+            document.addEventListener('keydown', (e) => {
+                if(e.code === 'Escape') {
+                     const menu = document.getElementById('menu-content');
+                     if(menu.classList.contains('open')) menu.classList.remove('open');
+                }
+            });
+
+            scene.add(controls.getObject());
+
+            const onKey = (e, down) => {
+                switch(e.code) {
+                    case 'KeyW': case 'ArrowUp': moveForward = down; break;
+                    case 'KeyA': case 'ArrowLeft': moveLeft = down; break;
+                    case 'KeyS': case 'ArrowDown': moveBackward = down; break;
+                    case 'KeyD': case 'ArrowRight': moveRight = down; break;
+                    case 'Space': if(down && controls.getObject().position.y <= 4.5) velocity.y += currentJumpPower; break;
+                }
+            };
+            document.addEventListener('keydown', (e) => onKey(e, true));
+            document.addEventListener('keyup', (e) => onKey(e, false));
+
+            // Lighting (Colored External Light Setup)
+            ambientLight = new THREE.AmbientLight(0x202030, 1.5); // Assign to global variable
+            scene.add(ambientLight);
+            sunLights.push(ambientLight); // Ambient light in sunLights array is fine for intensity updates
+
+            sun1 = new THREE.DirectionalLight(0x00ffff, 3.0); 
+            sun1.position.set(200, 500, 100);
+            sun1.castShadow = true;
+            sun1.shadow.mapSize.width = 2048; sun1.shadow.mapSize.height = 2048;
+            sun1.shadow.camera.far = 1500;
+            const d = 800;
+            sun1.shadow.camera.left = -d; sun1.shadow.camera.right = d;
+            sun1.shadow.camera.top = d; sun1.shadow.camera.bottom = -d;
+            scene.add(sun1);
+            sunLights.push(sun1);
+
+            sun2 = new THREE.DirectionalLight(0xff00ff, 2.5);
+            sun2.position.set(-300, 200, -300);
+            scene.add(sun2);
+            sunLights.push(sun2);
+            
+            sun3 = new THREE.DirectionalLight(0xffaa00, 2.0);
+            sun3.position.set(0, 300, 400);
+            scene.add(sun3);
+            sunLights.push(sun3);
+
+            // Post FX
+            const renderScene = new RenderPass(scene, camera);
+            bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+            bloomPass.threshold = config.bloomThreshold; 
+            bloomPass.strength = config.bloomStrength; 
+            bloomPass.radius = 0.4;
+
+            composer = new EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+            composer.addPass(new OutputPass());
+
+            createGround();
+            generateWorld();
+            setupUI();
+
+            window.addEventListener('resize', onResize);
+            animate();
+        }
+
+        function createGround() {
+            const geo = new THREE.PlaneGeometry(10000, 10000);
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: 0x05000a, 
+                roughness: 0.9, 
+                metalness: 0.1 
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+        }
+
+        function generateWorld() {
+            if(instancedCrystals) { 
+                scene.remove(instancedCrystals); instancedCrystals.dispose(); 
+            }
+            if(groundSparkles) { scene.remove(groundSparkles); groundSparkles.geometry.dispose(); }
+
+            treeData.length = 0;
+            // Get values from sliders for generation
+            config.density = parseInt(document.getElementById('density').value);
+            config.rangeScale = parseFloat(document.getElementById('rangeScale').value);
+            config.heightScale = parseFloat(document.getElementById('heightScale').value);
+            config.widthScale = parseFloat(document.getElementById('widthScale').value);
+            config.lightIntensity = parseFloat(document.getElementById('lightIntensity').value);
+            config.bloomThreshold = parseFloat(document.getElementById('bloomThreshold').value);
+            config.bloomStrength = parseFloat(document.getElementById('bloomStrength').value);
+            config.sparkleLevel = parseInt(document.getElementById('sparkles').value);
+            currentMovementSpeed = parseFloat(document.getElementById('movementSpeed').value);
+            currentJumpPower = parseFloat(document.getElementById('jumpPower').value);
+
+
+            const treeCount = config.density;
+            const maxSegments = treeCount * 60; 
+            
+            const crystalGeo = new THREE.DodecahedronGeometry(1, 0); 
+
+            // REFLECTIVE ROCK CANDY MATERIAL (Translucent, Non-Emissive)
+            const crystalMat = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                roughness: 0.15,  
+                metalness: 0.1,   
+                transmission: 0.6, // Glassy
+                thickness: 3.0,    
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.05,
+                emissive: 0x000000,
+                side: THREE.DoubleSide
+            });
+
+            instancedCrystals = new THREE.InstancedMesh(crystalGeo, crystalMat, maxSegments);
+            instancedCrystals.castShadow = true; 
+            instancedCrystals.receiveShadow = true;
+            instancedCrystals.instanceMatrix.setUsage(THREE.DynamicDrawUsage); 
+            instancedCrystals.frustumCulled = false; 
+
+            const dummy = new THREE.Object3D();
+            let segmentCount = 0;
+
+            const currentRange = config.range * config.rangeScale;
+
+            for(let i=0; i<treeCount; i++) {
+                const x = THREE.MathUtils.randFloatSpread(currentRange * 2);
+                const z = THREE.MathUtils.randFloatSpread(currentRange * 2);
+                
+                let collision = false;
+                for(const existingTree of treeData) {
+                    const distSq = (x - existingTree.x)**2 + (z - existingTree.z)**2;
+                    if (distSq < 15*15) { collision = true; break; }
+                }
+                if(collision) continue;
+
+                const type = Math.random();
+                let height, widthBase;
+
+                // Massive Variety Archetypes
+                if (type < 0.2) { 
+                    height = THREE.MathUtils.randFloat(40, 90); // SPIRES: 40m to 90m+
+                    widthBase = THREE.MathUtils.randFloat(0.5, 1.5); 
+                } else if (type < 0.4) { 
+                    height = THREE.MathUtils.randFloat(4, 12); // BOULDERS: 4m to 12m, very wide
+                    widthBase = THREE.MathUtils.randFloat(8, 16); 
+                } else if (type < 0.55) {
+                    height = THREE.MathUtils.randFloat(15, 50); // MONOLITHS: Tall and thick
+                    widthBase = THREE.MathUtils.randFloat(3, 8);
+                } else {
+                    height = THREE.MathUtils.randFloat(5, 30); // STANDARD: Normal variety
+                    widthBase = THREE.MathUtils.randFloat(1, 4);
+                }
+
+                height *= config.heightScale;
+                widthBase *= config.widthScale;
+                
+                if (height < 2) height = 2;
+
+                const colorIndex = Math.floor(Math.random() * PALETTE.length);
+                const seed = Math.random();
+
+                const tree = {
+                    x, z, height, widthBase, seed, colorIndex,
+                    segments: []
+                };
+
+                const layers = Math.floor(height / 1.0) + 2;
+                let y = -1.0; 
+                
+                for(let j=0; j<layers; j++) {
+                    if(segmentCount >= maxSegments) break;
+
+                    let taper = 1.0;
+                    if (j > layers * 0.6) taper = 1.0 - ((j - layers * 0.6) / (layers * 0.4));
+                    const wobble = 0.9 + 0.3 * Math.sin(j * 0.9 + seed * 15);
+                    const scale = taper * widthBase * wobble;
+                    
+                    dummy.position.set(tree.x, y + scale*0.5, tree.z);
+                    dummy.rotation.set(
+                        (seed + j) * 12.4, 
+                        (seed + j) * 45.8, 
+                        (seed + j) * 92.1
+                    );
+                    dummy.scale.setScalar(scale);
+                    dummy.updateMatrix();
+                    
+                    instancedCrystals.setMatrixAt(segmentCount, dummy.matrix);
+                    instancedCrystals.setColorAt(segmentCount, PALETTE[colorIndex]);
+                    
+                    tree.segments.push(segmentCount);
+                    segmentCount++;
+                    
+                    y += scale * 0.8; 
+                }
+                treeData.push(tree);
+            }
+
+            instancedCrystals.count = segmentCount;
+            instancedCrystals.instanceMatrix.needsUpdate = true;
+            instancedCrystals.instanceColor.needsUpdate = true;
+            scene.add(instancedCrystals);
+
+            generateSparkles();
+            
+            // Update light intensity based on new config values
+            // FIX: Use ambientLight global variable
+            ambientLight.intensity = 1.5 * config.lightIntensity;
+            sun1.intensity = 3.0 * config.lightIntensity;
+            sun2.intensity = 2.5 * config.lightIntensity;
+            sun3.intensity = 2.0 * config.lightIntensity;
+            
+            // Update bloom based on new config values
+            bloomPass.threshold = config.bloomThreshold;
+            bloomPass.strength = config.bloomStrength;
+        }
+
+        function generateSparkles() {
+            if(groundSparkles) { scene.remove(groundSparkles); groundSparkles.geometry.dispose(); }
+            
+            // Extreme Density Array
+            const countArray = [0, 50000, 100000, 200000, 400000];
+            const count = countArray[config.sparkleLevel];
+            if(count === 0) return;
+
+            const geo = new THREE.BufferGeometry();
+            const positions = [];
+            const sizes = [];
+            const phases = [];
+
+            const currentRange = config.range * config.rangeScale;
+
+            for(let i=0; i<count; i++) {
+                positions.push(
+                    THREE.MathUtils.randFloatSpread(currentRange * 2),
+                    0.1, 
+                    THREE.MathUtils.randFloatSpread(currentRange * 2)
+                );
+                sizes.push(THREE.MathUtils.randFloat(1, 3));
+                phases.push(Math.random() * Math.PI * 2);
+            }
+
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geo.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+            geo.setAttribute('phase', new THREE.Float32BufferAttribute(phases, 1));
+
+            const mat = new THREE.ShaderMaterial({
+                uniforms: { uTime: { value: 0 } },
+                vertexShader: sparkleVertex,
+                fragmentShader: sparkleFragment,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            groundSparkles = new THREE.Points(geo, mat);
+            scene.add(groundSparkles);
+        }
+
+        // INFINITE LOGIC (Treadmill effect)
+        const dummy = new THREE.Object3D();
+        function updateInfiniteTerrain() {
+            const px = controls.getObject().position.x;
+            const pz = controls.getObject().position.z;
+            const currentRange = config.range * config.rangeScale;
+            const range = currentRange * 2; 
+            const halfRange = currentRange;
+
+            let needsUpdate = false;
+
+            // 1. Wrap Trees
+            for(let i=0; i<treeData.length; i++) {
+                const tree = treeData[i];
+                let dx = tree.x - px;
+                let dz = tree.z - pz;
+                let wrapped = false;
+
+                if (dx < -halfRange) { tree.x += range; wrapped = true; }
+                else if (dx > halfRange) { tree.x -= range; wrapped = true; }
+                if (dz < -halfRange) { tree.z += range; wrapped = true; }
+                else if (dz > halfRange) { tree.z -= range; wrapped = true; }
+
+                if(wrapped) {
+                    let y = -1.0;
+                    const layers = tree.segments.length;
+                    for(let j=0; j<layers; j++) {
+                        const segIdx = tree.segments[j];
+                        
+                        // Recalculate properties based on stored seed/archetype
+                        let taper = 1.0;
+                        if (j > layers * 0.6) taper = 1.0 - ((j - layers * 0.6) / (layers * 0.4));
+                        const wobble = 0.9 + 0.3 * Math.sin(j * 0.9 + tree.seed * 15);
+                        const scale = taper * tree.widthBase * wobble;
+
+                        dummy.position.set(tree.x, y + scale*0.5, tree.z);
+                        dummy.rotation.set(
+                            (tree.seed + j) * 12.4, 
+                            (tree.seed + j) * 45.8, 
+                            (tree.seed + j) * 92.1
+                        );
+                        dummy.scale.setScalar(scale);
+                        dummy.updateMatrix();
+                        instancedCrystals.setMatrixAt(segIdx, dummy.matrix);
+                        y += scale * 0.8;
+                    }
+                    needsUpdate = true;
+                }
+            }
+            if(needsUpdate) instancedCrystals.instanceMatrix.needsUpdate = true;
+
+            // 2. Wrap Sparkles
+            if(groundSparkles) {
+                const pos = groundSparkles.geometry.attributes.position;
+                let dirty = false;
+                for(let i=0; i<pos.count; i++) {
+                    let x = pos.getX(i);
+                    let z = pos.getZ(i);
+                    let dx = x - px;
+                    let dz = z - pz;
+                    let w = false;
+                    if(dx < -halfRange) { x += range; w=true; }
+                    else if(dx > halfRange) { x -= range; w=true; }
+                    if(dz < -halfRange) { z += range; w=true; }
+                    else if(dz > halfRange) { z -= range; w=true; }
+                    
+                    if(w) { pos.setX(i, x); pos.setZ(i, z); dirty = true; }
+                }
+                if(dirty) pos.needsUpdate = true;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
+
+            if (controls.isLocked) {
+                // Apply current movement/jump speed from config
+                const speed = currentMovementSpeed;
+                const jumpPower = currentJumpPower;
+
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+                velocity.y -= 9.8 * 10.0 * delta; 
+
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize();
+
+                if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
+
+                controls.moveRight(-velocity.x * delta);
+                controls.moveForward(-velocity.z * delta);
+                controls.getObject().position.y += (velocity.y * delta);
+
+                if(controls.getObject().position.y < 3) {
+                    velocity.y = 0;
+                    controls.getObject().position.y = 3;
+                }
+
+                updateInfiniteTerrain();
+            }
+            
+            if(groundSparkles) groundSparkles.material.uniforms.uTime.value = time * 0.001;
+
+            prevTime = time;
+            composer.render();
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function setupUI() {
+            const toggle = document.getElementById('menu-toggle');
+            const content = document.getElementById('menu-content');
+            toggle.addEventListener('click', (e) => { e.stopPropagation(); content.classList.toggle('open'); });
+            
+            const bindSlider = (id, key) => {
+                const el = document.getElementById(id);
+                const label = el.previousElementSibling.querySelector('span');
+                
+                // Initialize label text
+                el.value = config[key];
+                if(label) label.innerText = el.value;
+                
+                el.addEventListener('input', (e) => {
+                    config[key] = parseFloat(e.target.value);
+                    if(label) label.innerText = el.value;
+
+                    // Immediate updates for light/bloom/physics
+                    if(key === 'lightIntensity') {
+                        // FIX: Use named global light variables
+                        ambientLight.intensity = 1.5 * config.lightIntensity;
+                        sun1.intensity = 3.0 * config.lightIntensity;
+                        sun2.intensity = 2.5 * config.lightIntensity;
+                        sun3.intensity = 2.0 * config.lightIntensity;
+
+                    } else if (key === 'bloomThreshold') {
+                        bloomPass.threshold = config.bloomThreshold;
+                    } else if (key === 'bloomStrength') {
+                        bloomPass.strength = config.bloomStrength;
+                    } else if (key === 'movementSpeed') {
+                        currentMovementSpeed = config[key];
+                    } else if (key === 'jumpPower') {
+                        currentJumpPower = config[key];
+                    }
+                });
+            };
+            
+            bindSlider('density', 'density');
+            bindSlider('rangeScale', 'rangeScale');
+            bindSlider('heightScale', 'heightScale');
+            bindSlider('widthScale', 'widthScale');
+            bindSlider('lightIntensity', 'lightIntensity');
+            bindSlider('bloomThreshold', 'bloomThreshold');
+            bindSlider('bloomStrength', 'bloomStrength');
+            bindSlider('sparkles', 'sparkleLevel');
+            bindSlider('movementSpeed', 'movementSpeed');
+            bindSlider('jumpPower', 'jumpPower');
+            
+            // Randomize Logic
+            document.getElementById('btn-random').addEventListener('click', () => {
+                const r = (min,max) => THREE.MathUtils.randFloat(min, max);
+                config.density = Math.floor(r(1000, 7000));
+                config.rangeScale = parseFloat(r(0.5, 2.0).toFixed(1));
+                config.heightScale = parseFloat(r(0.5, 3.0).toFixed(1));
+                config.widthScale = parseFloat(r(0.5, 3.0).toFixed(1));
+                config.lightIntensity = parseFloat(r(0.5, 2.5).toFixed(1));
+                config.bloomThreshold = parseFloat(r(0.2, 0.9).toFixed(2));
+                config.bloomStrength = parseFloat(r(0.5, 2.0).toFixed(1));
+                config.sparkleLevel = Math.floor(r(1, 4));
+                config.movementSpeed = Math.floor(r(800, 2500));
+                config.jumpPower = Math.floor(r(30, 80));
+
+
+                // Sync UI
+                const sliders = ['density','rangeScale','heightScale','widthScale','lightIntensity','bloomThreshold','bloomStrength','sparkles','movementSpeed','jumpPower'];
+                sliders.forEach(k => {
+                     let el = document.getElementById(k);
+                     if(el) {
+                         el.value = config[k];
+                         let label = el.previousElementSibling.querySelector('span');
+                         if(label) label.innerText = config[k];
+                     }
+                });
+                
+                // Apply immediate changes
+                currentMovementSpeed = config.movementSpeed;
+                currentJumpPower = config.jumpPower;
+                bloomPass.threshold = config.bloomThreshold;
+                bloomPass.strength = config.bloomStrength;
+                
+                // FIX: Update lights using global variables
+                ambientLight.intensity = 1.5 * config.lightIntensity;
+                sun1.intensity = 3.0 * config.lightIntensity;
+                sun2.intensity = 2.5 * config.lightIntensity;
+                sun3.intensity = 2.0 * config.lightIntensity;
+
+
+                // Regenerate world based on new geometry settings
+                generateWorld();
+            });
+
+
+            document.getElementById('btn-regen').addEventListener('click', () => {
+                generateWorld();
+            });
+            
+            content.addEventListener('click', (e) => e.stopPropagation());
+        }
+
+        init();
+    </script>
+</body>
+</html>
